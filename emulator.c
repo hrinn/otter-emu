@@ -1,4 +1,4 @@
-// RISCV 32 BIT EMULATOR
+// 32-BIT RISCV EMULATOR
 #include "emulator.h"
 
 void init_cpu(struct cpu *otter);
@@ -8,17 +8,24 @@ void execute(struct cpu *otter, uint32_t instruction);
 void execute_math(struct cpu *otter, uint32_t instruction, uint8_t opcode);
 void execute_store(struct cpu *otter, uint32_t instruction);
 void execute_load(struct cpu *otter, uint32_t instruction);
+void execute_branch(struct cpu *otter, uint32_t instruction, uint8_t *pc_set);
 void execute_jalr(struct cpu *otter, uint32_t instruction, uint8_t *pc_set);
+void execute_jal(struct cpu *otter, uint32_t instruction, uint8_t *pc_set);
+void execute_auipc(struct cpu *otter, uint32_t instruction);
+void execute_lui(struct cpu *otter, uint32_t instruction);
 void write_regfile(struct cpu *otter, uint8_t addr, uint32_t data);
-uint32_t read_regfile(struct cpu *otter, uint8_t addr);
+int32_t read_regfile(struct cpu *otter, uint8_t addr);
 uint8_t get_opcode(uint32_t instruction);
 uint8_t get_funct3(uint32_t instruction);
 uint8_t get_funct7(uint32_t instruction);
 uint8_t get_rs1(uint32_t instruction);
 uint8_t get_rs2(uint32_t instruction);
 uint8_t get_rd(uint32_t instruction);
-uint32_t get_immed_I(uint32_t instruction);
-uint32_t get_immed_S(uint32_t instruction);
+int32_t get_immed_I(uint32_t instruction);
+int32_t get_immed_S(uint32_t instruction);
+int32_t get_immed_B(uint32_t instruction);
+int32_t get_immed_J(uint32_t instruction);
+int32_t get_immed_U(uint32_t instruction);
 void dump_regfile(struct cpu *otter);
 
 int main(int argc, char *argv[]) {
@@ -98,16 +105,20 @@ void execute(struct cpu *otter, uint32_t instruction) {
             execute_load(otter, instruction);
             break;
         case BRANCH:
-            printf("BRANCH\n"); break;
+            execute_branch(otter, instruction, &pc_set);
+            break;
         case JALR:  
             execute_jalr(otter, instruction, &pc_set);
             break;
         case JAL:   
-            printf("JAL\n");    break;
+            execute_jal(otter, instruction, &pc_set);
+            break;
         case AUIPC: 
-            printf("AUIPC\n");  break;
+            execute_auipc(otter, instruction);
+            break;
         case LUI:   
-            printf("LUI\n");    break;
+            execute_lui(otter, instruction);
+            break;
         default:
             fprintf(stderr, "Unknown opcode: %X\n", opcode);
             break;
@@ -231,15 +242,66 @@ void execute_load(struct cpu *otter, uint32_t instruction) {
     read_mem(&otter->ram, addr, otter->regfile + rd, size);
 }
 
+void execute_branch(struct cpu *otter, uint32_t instruction, uint8_t *pc_set) {
+    uint8_t funct3 = get_funct3(instruction);
+    int32_t a = read_regfile(otter, get_rs1(instruction)), 
+        b = read_regfile(otter, get_rs2(instruction));
+
+    // Branch condition generator
+    uint8_t br_eq = a == b,
+        br_lt = a < b,
+        br_ltu = (uint32_t)a < (uint32_t)b;
+
+    switch (funct3) {
+        case BEQ:
+            if (br_eq) *pc_set = 1;
+            break;
+        case BNE:
+            if (!br_eq) *pc_set = 1;
+            break;
+        case BLT:
+            if (br_lt) *pc_set = 1;
+            break;
+        case BGE:
+            if (!br_lt) *pc_set = 1;
+            break;
+        case BLTU:
+            if (br_ltu) *pc_set = 1;
+            break;
+        case BGEU:
+            if (!br_ltu) *pc_set = 1;
+        default:
+            fprintf(stderr, "Unknown branch funct3: %X\n", funct3);
+            return;
+    }
+
+    if (*pc_set) {
+        otter->pc += get_immed_B(instruction);
+    }
+}
+
 void execute_jalr(struct cpu *otter, uint32_t instruction, uint8_t *pc_set) {
-    uint32_t target = read_regfile(otter, get_rs1(instruction)) + get_immed_I(instruction);
-    // Set LSB of target to 0
-    target &= 0xFFFFFFFE;
+    uint32_t target = (read_regfile(otter, get_rs1(instruction)) 
+        + get_immed_I(instruction));
     // Write PC+4 to RD
     write_regfile(otter, get_rd(instruction), otter->pc + 4);
     // Jump to target
     otter->pc = target;
     *pc_set = 1;
+}
+
+void execute_jal(struct cpu *otter, uint32_t instruction, uint8_t *pc_set) {
+    write_regfile(otter, get_rd(instruction), otter->pc + 4);
+    otter->pc += get_immed_J(instruction);
+    *pc_set = 1;
+}
+
+void execute_auipc(struct cpu *otter, uint32_t instruction) {
+    write_regfile(otter, get_rd(instruction), otter->pc + get_immed_U(instruction));
+}
+
+void execute_lui(struct cpu *otter, uint32_t instruction) {
+    write_regfile(otter, get_rd(instruction), get_immed_U(instruction));
 }
 
 void write_regfile(struct cpu *otter, uint8_t addr, uint32_t data) {
@@ -250,7 +312,7 @@ void write_regfile(struct cpu *otter, uint8_t addr, uint32_t data) {
     otter->regfile[addr] = data;
 }
 
-uint32_t read_regfile(struct cpu *otter, uint8_t addr) {
+int32_t read_regfile(struct cpu *otter, uint8_t addr) {
     if (DEBUG) printf("Read 0x%x from x%d\n", otter->regfile[addr], addr);
     return otter->regfile[addr];
 }
@@ -279,10 +341,31 @@ uint8_t get_rd(uint32_t instruction) {
     return (instruction >> 7) & 0x1F;
 }
 
-uint32_t get_immed_I(uint32_t instruction) {
-    return (instruction & 0xFFF00000) >> 20;
+int32_t get_immed_I(uint32_t instruction) {
+    return ((instruction & 0x80000000) ? 0xFFFFF000 : 0) | 
+        (instruction & 0xFFF00000) >> 20;
 }
 
-uint32_t get_immed_S(uint32_t instruction) {
-    return ((instruction & 0xFE000000) >> 20) | ((instruction >> 7) & 0x1F);
+int32_t get_immed_S(uint32_t instruction) {
+    return ((instruction & 0x80000000) ? 0xFFFFF00 : 0) |
+        ((instruction & 0xFE000000) >> 20) | 
+        ((instruction >> 7) & 0x1F);
+}
+
+int32_t get_immed_B(uint32_t instruction) {
+    return ((instruction & 0x80000000) ? 0xFFFFE : 0) |
+        ((instruction & 0x80) << 4) |
+        ((instruction & 0x7E000000) >> 20) |
+        ((instruction >> 7) & 0x1E);
+}
+
+int32_t get_immed_J(uint32_t instruction) {
+    return ((instruction & 0x80000000) >> 11) |
+        (instruction & 0xFF000) |
+        ((instruction >> 9) & 0x800) |
+        ((instruction >> 20) & 0x7FE);
+}
+
+int32_t get_immed_U(uint32_t instruction) {
+    return instruction & 0xFFF00000;
 }

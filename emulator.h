@@ -43,8 +43,16 @@
 #define LBU 4
 #define LHU 5
 
+// FUNCT3 - BRANCH
+#define BEQ 0
+#define BNE 1
+#define BLT 4
+#define BGE 5
+#define BLTU 6
+#define BGEU 7
+
 struct cpu {
     uint32_t pc;
-    uint32_t regfile[32];
+    int32_t regfile[32];
     struct memory ram;
 };
