@@ -1,7 +1,11 @@
-test: test.c
-	riscv32-unknown-elf-gcc -S test.c
-	riscv32-unknown-elf-gcc -Wl,-Ttext=0x0 -nostdlib -march=rv32i -mabi=ilp32 -o test test.s
-	riscv32-unknown-elf-objcopy -O binary test test.bin
+ctest: ctest.c
+	riscv32-unknown-elf-gcc -S ctest.c
+	riscv32-unknown-elf-gcc -Wl,-Ttext=0x0 -nostdlib -march=rv32i -mabi=ilp32 -o ctest ctest.s
+	riscv32-unknown-elf-objcopy -O binary ctest ctest.bin
 
+stest: stest.s
+	riscv32-unknown-elf-gcc -Wl,-Ttext=0x0 -nostdlib -march=rv32i -mabi=ilp32 -o stest stest.s
+	riscv32-unknown-elf-objcopy -O binary stest stest.bin
+	
 clean:
-	rm test test.s test.bin
+	rm ctest stest *.bin *.o ctest.s

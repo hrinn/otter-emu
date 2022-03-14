@@ -29,8 +29,6 @@ void read_mem(struct memory *m, uint32_t addr, void *buffer, uint8_t n) {
 
 // Writes n bytes from data, stores it at mem[addr]
 void write_mem(struct memory *m, uint32_t addr, void *data, uint8_t n) {
-    // Trap MMIO
-
     if (!(n == WORD || n == HALFWORD || n == BYTE)) {
         fprintf(stderr, "Unsupported memory size on read.");
         return;
@@ -38,7 +36,9 @@ void write_mem(struct memory *m, uint32_t addr, void *data, uint8_t n) {
 
     if (addr >= MEM_BASE) {
         memcpy((m->mem + addr) - MEM_BASE, data, n);
+    } else if (addr == MMIO_PUTCHAR) {
+        putchar(*(char *)data);
     } else {
-        fprintf(stderr, "Access to write 0x%x to unsupported memory region: 0x%08X\n", *(int *)data, addr);
+        fprintf(stderr, "Attempt to write 0x%x to unsupported memory region: 0x%08X\n", *(int *)data, addr);
     }
 }

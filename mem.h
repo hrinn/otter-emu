@@ -13,6 +13,9 @@
 #define HALFWORD 2
 #define BYTE 1
 
+// MMIO
+#define MMIO_PUTCHAR 0x110C0000
+
 struct memory {
     uint8_t *mem;
 };
