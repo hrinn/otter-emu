@@ -1,0 +1,5 @@
+*.o
+emulator
+prog/test
+prog/test.bin
+prog/test.s
