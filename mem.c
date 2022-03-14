@@ -13,13 +13,25 @@ uint8_t *alloc_mem() {
 }
 
 // Reads n bytes from mem[addr], stores it in the provided buffer
-void read_memory(struct memory *m, uint32_t addr, void *buffer, uint8_t n) {
+void read_mem(struct memory *m, uint32_t addr, void *buffer, uint8_t n) {
     // Trap MMIO accesses
 
-    if (n == 4 || n == 2 || n == 1) {
+    if (!(n == WORD || n == HALFWORD || n == BYTE)) {
         fprintf(stderr, "Unsupported memory size on read.");
         return;
     }
 
     memcpy(buffer, m->mem + addr, n);
+}
+
+// Writes n bytes from data, stores it at mem[addr]
+void write_mem(struct memory *m, uint32_t addr, void *data, uint8_t n) {
+    // Trap MMIO
+
+    if (!(n == WORD || n == HALFWORD || n == BYTE)) {
+        fprintf(stderr, "Unsupported memory size on read.");
+        return;
+    }
+
+    memcpy(m->mem + addr, data, n);
 }

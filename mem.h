@@ -18,4 +18,4 @@ struct memory {
 
 void init_mem(struct memory *m, int fd);
 uint8_t *alloc_mem();
-void read_memory(struct memory *m, uint32_t addr, void *buffer, uint8_t n);
+void read_mem(struct memory *m, uint32_t addr, void *buffer, uint8_t n);

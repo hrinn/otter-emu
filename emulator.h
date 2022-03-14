@@ -20,6 +20,16 @@
 #define AUIPC   0b0010111
 #define LUI     0b0110111
 
+// MATH - FUNC3
+#define ADD_SUB 0
+#define SLL 1
+#define SLT 2
+#define SLTU 3
+#define XOR 4
+#define SRL_SRA 5
+#define OR 6
+#define AND 7
+
 struct cpu {
     uint32_t pc;
     uint32_t regfile[32];
