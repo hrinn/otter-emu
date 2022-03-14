@@ -6,7 +6,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define MEM_SIZE 1024 * 1024 * 1 // 1 Mb
+#define MEM_SIZE 1024 * 1024 * 8 // 8 Mb
+#define MEM_BASE 0x80000000
 
 #define WORD 4
 #define HALFWORD 2

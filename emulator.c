@@ -50,7 +50,7 @@ void init_cpu(struct cpu *otter) {
 }
 
 void run(struct cpu *otter) {
-    uint32_t instruction;
+    uint32_t instruction = 0;
 
     while (1) {
         instruction = fetch(otter);
@@ -63,7 +63,7 @@ void run(struct cpu *otter) {
 }
 
 uint32_t fetch(struct cpu *otter) {
-    uint32_t instruction;
+    uint32_t instruction = 0;
     read_mem(&otter->ram, otter->pc, &instruction, WORD);
     return instruction;
 }
@@ -161,8 +161,15 @@ void execute_math(struct cpu *otter, uint32_t instruction, uint8_t opcode) {
 void execute_store(struct cpu *otter, uint32_t instruction) {
     uint8_t funct3 = get_funct3(instruction), data_byte;
     uint16_t data_half;
-    uint32_t addr = otter->regfile[get_rs1(instruction)] + get_immed_S(instruction),
-        data_word = otter->regfile[get_rs2(instruction)];
+    uint32_t dest = otter->regfile[get_rs1(instruction)],
+        data_word = otter->regfile[get_rs2(instruction)],
+        shift = get_immed_S(instruction);
+
+    uint32_t addr = dest + shift;
+
+    printf("Storing at address 0x%08x (%08x + %08x)\n", addr, dest, shift);
+    printf("Store instruction: %08x\n", instruction);
+
 
     switch (funct3) {
         case SB:
