@@ -4,15 +4,18 @@
 void init_cpu(struct cpu *otter);
 void run(struct cpu *otter);
 uint32_t fetch(struct cpu *otter);
-uint8_t get_opcode(uint32_t instruction);
 void execute(struct cpu *otter, uint32_t instruction);
+void execute_math(struct cpu *otter, uint32_t instruction, uint8_t opcode);
+void execute_store(struct cpu *otter, uint32_t instruction);
+void execute_load(struct cpu *otter, uint32_t instruction);
+uint8_t get_opcode(uint32_t instruction);
 uint8_t get_funct3(uint32_t instruction);
 uint8_t get_funct7(uint32_t instruction);
 uint8_t get_rs1(uint32_t instruction);
 uint8_t get_rs2(uint32_t instruction);
 uint8_t get_rd(uint32_t instruction);
 uint32_t get_immed_I(uint32_t instruction);
-void execute_math(struct cpu *otter, uint32_t instruction, uint8_t opcode);
+uint32_t get_immed_S(uint32_t instruction);
 
 int main(int argc, char *argv[]) {
     int fd;
@@ -67,6 +70,7 @@ uint32_t fetch(struct cpu *otter) {
 
 void execute(struct cpu *otter, uint32_t instruction) {
     uint8_t opcode = get_opcode(instruction);
+    uint8_t pc_set = 0;
 
     switch (opcode) {
         case MATH:
@@ -74,9 +78,11 @@ void execute(struct cpu *otter, uint32_t instruction) {
             execute_math(otter, instruction, opcode);
             break;
         case STORE: 
-            printf("STORE\n");  break; 
-        case LOAD:  
-            printf("LOAD\n");   break;
+            execute_store(otter, instruction);
+            break;
+        case LOAD:
+            execute_load(otter, instruction);
+            break;
         case BRANCH:
             printf("BRANCH\n"); break;
         case JALR:  
@@ -92,7 +98,9 @@ void execute(struct cpu *otter, uint32_t instruction) {
             break;
     }
 
-    otter->pc += 4;
+    if (!pc_set) {
+        otter->pc += 4;
+    }
 }
 
 void execute_math(struct cpu *otter, uint32_t instruction, uint8_t opcode) {
@@ -150,6 +158,59 @@ void execute_math(struct cpu *otter, uint32_t instruction, uint8_t opcode) {
     otter->regfile[rd] = res;
 }
 
+void execute_store(struct cpu *otter, uint32_t instruction) {
+    uint8_t funct3 = get_funct3(instruction), data_byte;
+    uint16_t data_half;
+    uint32_t addr = otter->regfile[get_rs1(instruction)] + get_immed_S(instruction),
+        data_word = otter->regfile[get_rs2(instruction)];
+
+    switch (funct3) {
+        case SB:
+            data_byte = data_word & 0xFF;
+            write_mem(&otter->ram, addr, &data_byte, BYTE);
+            break;
+        case SH:
+            data_half = data_word & 0xFFFF;
+            write_mem(&otter->ram, addr, &data_half, HALFWORD);
+            break;
+        case SW:
+            write_mem(&otter->ram, addr, &data_word, WORD);
+            break;
+        default:
+            fprintf(stderr, "Unknown store funct3: %X\n", funct3);
+            return;
+    }
+}
+
+void execute_load(struct cpu *otter, uint32_t instruction) {
+    uint8_t funct3 = get_funct3(instruction), rd = get_rd(instruction);
+    uint32_t addr = otter->regfile[get_rs1(instruction)] + get_immed_I(instruction);
+    uint8_t size;
+
+    switch (funct3) {
+        case LB:
+            size = BYTE;
+            break;
+        case LH:
+            size = HALFWORD;
+            break;
+        case LW:
+            size = WORD;
+            break;
+        case LBU:
+            fprintf(stderr, "LBU not implemented.\n");
+            return;
+        case LHU:
+            fprintf(stderr, "LHU not implemented.\n");
+            return;
+        default:
+            fprintf(stderr, "Unknown load funct3: %X\n", funct3);
+            return;
+    }
+
+    read_mem(&otter->ram, addr, otter->regfile + rd, size);
+}
+
 uint8_t get_opcode(uint32_t instruction) {
     return instruction & 0x7F;
 }
@@ -175,5 +236,9 @@ uint8_t get_rd(uint32_t instruction) {
 }
 
 uint32_t get_immed_I(uint32_t instruction) {
-    return instruction >> 20;
+    return (instruction & 0xFFF00000) >> 20;
+}
+
+uint32_t get_immed_S(uint32_t instruction) {
+    return ((instruction & 0xFE000000) >> 20) | ((instruction >> 7) & 0x1F);
 }

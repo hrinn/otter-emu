@@ -20,7 +20,7 @@
 #define AUIPC   0b0010111
 #define LUI     0b0110111
 
-// MATH - FUNC3
+// FUNCT3 - MATH
 #define ADD_SUB 0
 #define SLL 1
 #define SLT 2
@@ -29,6 +29,18 @@
 #define SRL_SRA 5
 #define OR 6
 #define AND 7
+
+// FUNCT3 - STORE
+#define SB 0
+#define SH 1
+#define SW 2
+
+// FUNCT3 - LOAD
+#define LB 0
+#define LH 1
+#define LW 2
+#define LBU 4
+#define LHU 5
 
 struct cpu {
     uint32_t pc;
