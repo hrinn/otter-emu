@@ -8,6 +8,9 @@ void execute(struct cpu *otter, uint32_t instruction);
 void execute_math(struct cpu *otter, uint32_t instruction, uint8_t opcode);
 void execute_store(struct cpu *otter, uint32_t instruction);
 void execute_load(struct cpu *otter, uint32_t instruction);
+void execute_jalr(struct cpu *otter, uint32_t instruction, uint8_t *pc_set);
+void write_regfile(struct cpu *otter, uint8_t addr, uint32_t data);
+uint32_t read_regfile(struct cpu *otter, uint8_t addr);
 uint8_t get_opcode(uint32_t instruction);
 uint8_t get_funct3(uint32_t instruction);
 uint8_t get_funct7(uint32_t instruction);
@@ -16,6 +19,7 @@ uint8_t get_rs2(uint32_t instruction);
 uint8_t get_rd(uint32_t instruction);
 uint32_t get_immed_I(uint32_t instruction);
 uint32_t get_immed_S(uint32_t instruction);
+void dump_regfile(struct cpu *otter);
 
 int main(int argc, char *argv[]) {
     int fd;
@@ -44,8 +48,9 @@ int main(int argc, char *argv[]) {
 }
 
 void init_cpu(struct cpu *otter) {
-    otter->pc = 0;
+    otter->pc = MEM_BASE;   // Initialize pc to base of memory
     memset(otter->regfile, 0, sizeof(otter->regfile));
+    otter->regfile[2] = MEM_BASE + MEM_SIZE; // Initialize stack pointer to top of memory
     otter->ram.mem = alloc_mem();
 }
 
@@ -53,18 +58,27 @@ void run(struct cpu *otter) {
     uint32_t instruction = 0;
 
     while (1) {
+        if (otter->pc == 0) break;
         instruction = fetch(otter);
         execute(otter, instruction);
+    }
 
-        if (instruction == 0) {
-            break;
-        }
+    if (DEBUG) dump_regfile(otter);
+}
+
+void dump_regfile(struct cpu *otter) {
+    int i;
+
+    printf("REGFILE:\n");
+    for (i = 0; i < 32; i++) {
+        printf("x%02d: 0x%x\n", i, otter->regfile[i]);
     }
 }
 
 uint32_t fetch(struct cpu *otter) {
     uint32_t instruction = 0;
     read_mem(&otter->ram, otter->pc, &instruction, WORD);
+    if (DEBUG) printf("PC=0x%x, INSTR=0x%08x\n", otter->pc, instruction);
     return instruction;
 }
 
@@ -86,7 +100,8 @@ void execute(struct cpu *otter, uint32_t instruction) {
         case BRANCH:
             printf("BRANCH\n"); break;
         case JALR:  
-            printf("JALR\n");   break;
+            execute_jalr(otter, instruction, &pc_set);
+            break;
         case JAL:   
             printf("JAL\n");    break;
         case AUIPC: 
@@ -155,20 +170,17 @@ void execute_math(struct cpu *otter, uint32_t instruction, uint8_t opcode) {
             return;
     }
 
-    otter->regfile[rd] = res;
+    write_regfile(otter, rd, res);
 }
 
 void execute_store(struct cpu *otter, uint32_t instruction) {
     uint8_t funct3 = get_funct3(instruction), data_byte;
     uint16_t data_half;
-    uint32_t dest = otter->regfile[get_rs1(instruction)],
-        data_word = otter->regfile[get_rs2(instruction)],
+    uint32_t dest = read_regfile(otter, get_rs1(instruction)),
+        data_word = read_regfile(otter, get_rs2(instruction)),
         shift = get_immed_S(instruction);
 
     uint32_t addr = dest + shift;
-
-    printf("Storing at address 0x%08x (%08x + %08x)\n", addr, dest, shift);
-    printf("Store instruction: %08x\n", instruction);
 
 
     switch (funct3) {
@@ -191,7 +203,7 @@ void execute_store(struct cpu *otter, uint32_t instruction) {
 
 void execute_load(struct cpu *otter, uint32_t instruction) {
     uint8_t funct3 = get_funct3(instruction), rd = get_rd(instruction);
-    uint32_t addr = otter->regfile[get_rs1(instruction)] + get_immed_I(instruction);
+    uint32_t addr = read_regfile(otter, get_rs1(instruction))  + get_immed_I(instruction);
     uint8_t size;
 
     switch (funct3) {
@@ -215,7 +227,32 @@ void execute_load(struct cpu *otter, uint32_t instruction) {
             return;
     }
 
+    if (DEBUG) printf("Loading %dB from memory 0x%x\n", size, addr);
     read_mem(&otter->ram, addr, otter->regfile + rd, size);
+}
+
+void execute_jalr(struct cpu *otter, uint32_t instruction, uint8_t *pc_set) {
+    uint32_t target = read_regfile(otter, get_rs1(instruction)) + get_immed_I(instruction);
+    // Set LSB of target to 0
+    target &= 0xFFFFFFFE;
+    // Write PC+4 to RD
+    write_regfile(otter, get_rd(instruction), otter->pc + 4);
+    // Jump to target
+    otter->pc = target;
+    *pc_set = 1;
+}
+
+void write_regfile(struct cpu *otter, uint8_t addr, uint32_t data) {
+    if (addr == 0) {
+        return;
+    }
+    if (DEBUG) printf("Writing 0x%x to x%d\n", data, addr);
+    otter->regfile[addr] = data;
+}
+
+uint32_t read_regfile(struct cpu *otter, uint8_t addr) {
+    if (DEBUG) printf("Read 0x%x from x%d\n", otter->regfile[addr], addr);
+    return otter->regfile[addr];
 }
 
 uint8_t get_opcode(uint32_t instruction) {

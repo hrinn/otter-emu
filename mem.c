@@ -23,7 +23,7 @@ void read_mem(struct memory *m, uint32_t addr, void *buffer, uint8_t n) {
     if (addr >= MEM_BASE) {
         memcpy(buffer, (m->mem + addr) - MEM_BASE, n);
     } else {
-        fprintf(stderr, "Access to unsupported memory region: 0x%08X\n", addr);
+        fprintf(stderr, "Attempt to read from unsupported memory region: 0x%08X\n", addr);
     }
 }
 
@@ -39,6 +39,6 @@ void write_mem(struct memory *m, uint32_t addr, void *data, uint8_t n) {
     if (addr >= MEM_BASE) {
         memcpy((m->mem + addr) - MEM_BASE, data, n);
     } else {
-        fprintf(stderr, "Access to unsupported memory region: 0x%08X\n", addr);
+        fprintf(stderr, "Access to write 0x%x to unsupported memory region: 0x%08X\n", *(int *)data, addr);
     }
 }

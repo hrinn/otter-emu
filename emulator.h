@@ -8,6 +8,7 @@
 #include "mem.h"
 
 #define XLEN 32
+#define DEBUG 0
 
 // OPCODES
 #define MATH    0b0110011
