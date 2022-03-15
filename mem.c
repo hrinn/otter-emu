@@ -20,7 +20,7 @@ void read_mem(struct memory *m, uint32_t addr, void *buffer, uint8_t n) {
     }
 
     // Trap MMIO accesses
-    if (addr >= MEM_BASE) {
+    if (addr >= MEM_BASE && addr < MEM_BASE + MEM_SIZE) {
         memcpy(buffer, (m->mem + addr) - MEM_BASE, n);
     } else {
         fprintf(stderr, "Attempt to read from unsupported memory region: 0x%08X\n", addr);
@@ -34,7 +34,7 @@ void write_mem(struct memory *m, uint32_t addr, void *data, uint8_t n) {
         return;
     }
 
-    if (addr >= MEM_BASE) {
+    if (addr >= MEM_BASE && addr < MEM_BASE + MEM_SIZE) {
         memcpy((m->mem + addr) - MEM_BASE, data, n);
     } else if (addr == MMIO_PUTCHAR) {
         putchar(*(char *)data);

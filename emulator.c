@@ -67,6 +67,7 @@ void run(struct cpu *otter) {
     while (1) {
         if (otter->pc == 0) break;
         instruction = fetch(otter);
+        if (instruction == 0) break;
         execute(otter, instruction);
     }
 
@@ -282,7 +283,7 @@ void execute_branch(struct cpu *otter, uint32_t instruction, uint8_t *pc_set) {
 
     if (*pc_set) {
         otter->pc += get_immed_B(instruction);
-        if (DEBUG) printf("Branch taken: PC = %d\n", otter->pc);
+        if (DEBUG) printf("Branch taken: PC = 0x%x\n", otter->pc);
     }
 }
 

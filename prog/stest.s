@@ -11,7 +11,7 @@ main:
     li t5, 0x110C0000
     
 loop:
-    addi t4, t0, t2
+    add t4, t0, t2
     lb t3, 0(t4)
     sb t3, 0(t5)
     addi t2, t2, 1
