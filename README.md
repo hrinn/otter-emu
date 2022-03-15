@@ -8,7 +8,7 @@ A 32 bit RISC-V emulator written in C. Based on the OTTER's architecture--a Cal 
 > ./configure --prefix=<path-to-toolchain> --with-arch=rv32g
 > make && make linux
 ```
-Ensure that <path-to-toolchain>/bin is on your path.
+Ensure that `path-to-toolchain/bin` is on your path.
 
 ## Credits
 Inspiration and guidance from:
