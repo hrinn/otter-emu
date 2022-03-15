@@ -28,6 +28,8 @@ int32_t get_immed_J(uint32_t instruction);
 int32_t get_immed_U(uint32_t instruction);
 void dump_regfile(struct cpu *otter);
 
+const char *reg_labels[32] = {"zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2", "s0/fp", "s1", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"};
+
 int main(int argc, char *argv[]) {
     int fd;
 
@@ -79,7 +81,7 @@ void dump_regfile(struct cpu *otter) {
 
     printf("REGFILE:\n");
     for (i = 0; i < 32; i++) {
-        printf("x%02d: 0x%x\n", i, otter->regfile[i]);
+        printf("x%02d/%s: 0x%x\n", i, reg_labels[i], otter->regfile[i]);
     }
 }
 
@@ -131,14 +133,14 @@ void execute(struct cpu *otter, uint32_t instruction) {
 }
 
 void execute_math(struct cpu *otter, uint32_t instruction, uint8_t opcode) {
-    int32_t a, b, res;
+    uint32_t a, b, res;
     uint8_t funct3 = get_funct3(instruction), funct7 = get_funct7(instruction);
 
     // Get A and B
-    a = otter->regfile[get_rs1(instruction)];
+    a = read_regfile(otter, get_rs1(instruction));
 
     if (opcode == MATH) {
-        b = otter->regfile[get_rs2(instruction)];
+        b = read_regfile(otter, get_rs2(instruction));
     } else {
         b = get_immed_I(instruction);
     }
@@ -146,7 +148,7 @@ void execute_math(struct cpu *otter, uint32_t instruction, uint8_t opcode) {
     // Decode instruction
     switch (funct3) {
         case ADD_SUB:
-            if (funct7 == 0) { // ADD
+            if (funct7 == 0 || opcode == MATHI) { // ADD
                 res = a + b;
             } else { // SUB
                 res = a - b;
@@ -349,20 +351,20 @@ uint8_t get_rd(uint32_t instruction) {
 }
 
 int32_t get_immed_I(uint32_t instruction) {
-    return ((instruction & 0x80000000) ? 0xFFFFF000 : 0) | 
+    return ((int32_t)(instruction & 0x80000000) >> 20) | 
         (instruction & 0xFFF00000) >> 20;
 }
 
 int32_t get_immed_S(uint32_t instruction) {
-    return ((instruction & 0x80000000) ? 0xFFFFF00 : 0) |
+    return ((int32_t)(instruction & 0x80000000) >> 20) |
         ((instruction & 0xFE000000) >> 20) | 
         ((instruction >> 7) & 0x1F);
 }
 
 int32_t get_immed_B(uint32_t instruction) {
-    return ((instruction & 0x80000000) ? 0xFFFFE : 0) |
+    return ((int32_t)(instruction & 0x80000000) >> 19) |
         ((instruction & 0x80) << 4) |
-        ((instruction & 0x7E000000) >> 20) |
+        ((instruction >> 20 ) & 0x7E0) |
         ((instruction >> 7) & 0x1E);
 }
 
@@ -374,5 +376,5 @@ int32_t get_immed_J(uint32_t instruction) {
 }
 
 int32_t get_immed_U(uint32_t instruction) {
-    return instruction & 0xFFF00000;
+    return instruction & 0xFFFFF000;
 }

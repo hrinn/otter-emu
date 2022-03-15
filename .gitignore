@@ -4,3 +4,7 @@ prog/ctest
 prog/stest
 prog/ctest.s
 prog/*.bin
+.vscode/
+prog/mem.txt
+prog/program.dump
+prog/test
