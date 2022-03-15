@@ -8,6 +8,7 @@ A 32 bit RISC-V emulator. Based on the OTTER's architecture--a Cal Poly CPE Depa
 > ./configure --prefix=<path-to-toolchain> --with-arch=rv32g
 > make && make linux
 ```
+Ensure that <path-to-toolchain>/bin is on your path.
 
 ## Credits
 Inspiration and guidance from:

@@ -13,7 +13,7 @@ void execute_jalr(struct cpu *otter, uint32_t instruction, uint8_t *pc_set);
 void execute_jal(struct cpu *otter, uint32_t instruction, uint8_t *pc_set);
 void execute_auipc(struct cpu *otter, uint32_t instruction);
 void execute_lui(struct cpu *otter, uint32_t instruction);
-void write_regfile(struct cpu *otter, uint8_t addr, uint32_t data);
+void write_regfile(struct cpu *otter, uint8_t addr, int32_t data);
 int32_t read_regfile(struct cpu *otter, uint8_t addr);
 uint8_t get_opcode(uint32_t instruction);
 uint8_t get_funct3(uint32_t instruction);
@@ -130,12 +130,11 @@ void execute(struct cpu *otter, uint32_t instruction) {
 }
 
 void execute_math(struct cpu *otter, uint32_t instruction, uint8_t opcode) {
-    uint32_t a, b, res;
-    uint8_t rd = get_rd(instruction), rs1 = get_rs1(instruction),
-        funct3 = get_funct3(instruction), funct7 = get_funct7(instruction);
+    int32_t a, b, res;
+    uint8_t funct3 = get_funct3(instruction), funct7 = get_funct7(instruction);
 
     // Get A and B
-    a = otter->regfile[rs1];
+    a = otter->regfile[get_rs1(instruction)];
 
     if (opcode == MATH) {
         b = otter->regfile[get_rs2(instruction)];
@@ -156,19 +155,19 @@ void execute_math(struct cpu *otter, uint32_t instruction, uint8_t opcode) {
             res = a << (b & 0x1F);
             break;
         case SLT:
-            res = ((int32_t)a < (int32_t)b) ? 1 : 0;
+            res = (a < b) ? 1 : 0;
             break;
         case SLTU:
-            res = (a < b) ? 1 : 0;
+            res = ((uint32_t)a < (uint32_t)b) ? 1 : 0;
             break;
         case XOR:
             res = a ^ b;
             break;
         case SRL_SRA:
             if (funct7 == 0) { // SRL
-                res = a >> (b & 0x1F);
+                res = (uint32_t)a >> (b & 0x1F);
             } else { // SRA
-                res = (int32_t)a >> (b & 0x1F); 
+                res = a >> (b & 0x1F); 
             }
         case OR:
             res = a | b;
@@ -181,7 +180,7 @@ void execute_math(struct cpu *otter, uint32_t instruction, uint8_t opcode) {
             return;
     }
 
-    write_regfile(otter, rd, res);
+    write_regfile(otter, get_rd(instruction), res);
 }
 
 void execute_store(struct cpu *otter, uint32_t instruction) {
@@ -213,9 +212,11 @@ void execute_store(struct cpu *otter, uint32_t instruction) {
 }
 
 void execute_load(struct cpu *otter, uint32_t instruction) {
-    uint8_t funct3 = get_funct3(instruction), rd = get_rd(instruction);
-    uint32_t addr = read_regfile(otter, get_rs1(instruction))  + get_immed_I(instruction);
+    uint8_t funct3 = get_funct3(instruction);;
+    uint32_t addr = read_regfile(otter, get_rs1(instruction)) + get_immed_I(instruction);
     uint8_t size;
+    uint32_t mask = 0xFFFFFFFF;
+    int32_t data;
 
     switch (funct3) {
         case LB:
@@ -228,18 +229,22 @@ void execute_load(struct cpu *otter, uint32_t instruction) {
             size = WORD;
             break;
         case LBU:
-            fprintf(stderr, "LBU not implemented.\n");
-            return;
+            size = BYTE;
+            mask = 0x000000FF;
+            break;
         case LHU:
-            fprintf(stderr, "LHU not implemented.\n");
-            return;
+            size = HALFWORD;
+            mask = 0x0000FFFF;
+            break;
         default:
             fprintf(stderr, "Unknown load funct3: %X\n", funct3);
             return;
     }
 
     if (DEBUG) printf("Loading %dB from memory 0x%x\n", size, addr);
-    read_mem(&otter->ram, addr, otter->regfile + rd, size);
+    read_mem(&otter->ram, addr, &data, size);
+    data &= mask;
+    write_regfile(otter, get_rd(instruction), data);
 }
 
 void execute_branch(struct cpu *otter, uint32_t instruction, uint8_t *pc_set) {
@@ -277,6 +282,7 @@ void execute_branch(struct cpu *otter, uint32_t instruction, uint8_t *pc_set) {
 
     if (*pc_set) {
         otter->pc += get_immed_B(instruction);
+        if (DEBUG) printf("Branch taken: PC = %d\n", otter->pc);
     }
 }
 
@@ -304,7 +310,7 @@ void execute_lui(struct cpu *otter, uint32_t instruction) {
     write_regfile(otter, get_rd(instruction), get_immed_U(instruction));
 }
 
-void write_regfile(struct cpu *otter, uint8_t addr, uint32_t data) {
+void write_regfile(struct cpu *otter, uint8_t addr, int32_t data) {
     if (addr == 0) {
         return;
     }
