@@ -15,6 +15,7 @@
 
 // MMIO
 #define MMIO_PUTCHAR 0x110C0000
+#define MMIO_PUTNUM 0x11080000
 
 struct memory {
     uint8_t *mem;

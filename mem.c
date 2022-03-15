@@ -36,9 +36,18 @@ void write_mem(struct memory *m, uint32_t addr, void *data, uint8_t n) {
 
     if (addr >= MEM_BASE && addr < MEM_BASE + MEM_SIZE) {
         memcpy((m->mem + addr) - MEM_BASE, data, n);
-    } else if (addr == MMIO_PUTCHAR) {
-        putchar(*(char *)data);
-    } else {
-        fprintf(stderr, "Attempt to write 0x%x to unsupported memory region: 0x%08X\n", *(int *)data, addr);
+        return;
+    }
+
+    // Writeable MMIO
+    switch (addr) {
+        case MMIO_PUTCHAR:
+            printf("%c", *(char *)data);
+            break;
+        case MMIO_PUTNUM:
+            printf("%d\n", *(int *)data);
+            break;
+        default:
+            fprintf(stderr, "Attempt to write 0x%x to unsupported memory region: 0x%08X\n", *(int *)data, addr);
     }
 }
